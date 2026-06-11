@@ -1,28 +1,55 @@
 import Image from "next/image";
 import Link from "next/link";
-import { TRAILERS, getFeaturedTrailers, CATEGORIES } from "@/data/trailers";
+import { CATEGORIES, STATIC_TRAILERS, getStaticFeatured } from "@/data/trailers";
+import {
+  getPopularTrailers,
+  getNowPlayingTrailers,
+  tmdbEnabled,
+} from "@/lib/tmdb";
+import { Trailer } from "@/types";
 import TrailerCard from "@/components/TrailerCard";
 import CategoryFilter from "@/components/CategoryFilter";
 import Ad from "@/components/Ad";
 
+// Revalidate every hour so new trailers appear automatically
+export const revalidate = 3600;
+
 export const metadata = {
   title: "TrailerVault – Latest Movie Trailers",
-  description: "Watch the latest movie trailers. Discover upcoming films across every genre.",
+  description:
+    "Watch the latest movie trailers. Discover upcoming films across every genre — updated automatically.",
 };
 
-export default function HomePage() {
-  const featured = getFeaturedTrailers();
-  const hero = featured[0];
-  const heroThumbnail = `https://img.youtube.com/vi/${hero.youtubeId}/maxresdefault.jpg`;
-  const latest = TRAILERS.slice(0, 12);
+export default async function HomePage() {
+  let trailers: Trailer[];
+  let nowPlaying: Trailer[];
+
+  if (tmdbEnabled()) {
+    [trailers, nowPlaying] = await Promise.all([
+      getPopularTrailers().catch(() => STATIC_TRAILERS),
+      getNowPlayingTrailers().catch(() => []),
+    ]);
+  } else {
+    trailers = STATIC_TRAILERS;
+    nowPlaying = [];
+  }
+
+  const featured = tmdbEnabled()
+    ? trailers.slice(0, 3)
+    : getStaticFeatured();
+
+  const hero = featured[0] ?? trailers[0];
+  const heroBg = hero.backdropPath
+    ? `https://image.tmdb.org/t/p/w1280${hero.backdropPath}`
+    : `https://img.youtube.com/vi/${hero.youtubeId}/maxresdefault.jpg`;
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       {/* Hero */}
-      <section className="relative rounded-2xl overflow-hidden mb-8 group">
+      <section className="relative rounded-2xl overflow-hidden mb-8">
         <div className="relative h-[420px] md:h-[520px]">
           <Image
-            src={heroThumbnail}
+            src={heroBg}
             alt={hero.title}
             fill
             className="object-cover"
@@ -39,7 +66,11 @@ export default function HomePage() {
               Featured
             </span>
             <span className="text-[var(--color-cinema-muted)] text-sm">{hero.year}</span>
-            <span className="text-[var(--color-cinema-gold)] text-sm font-medium">★ {hero.rating}</span>
+            {hero.rating > 0 && (
+              <span className="text-[var(--color-cinema-gold)] text-sm font-medium">
+                ★ {hero.rating}
+              </span>
+            )}
           </div>
 
           <h1 className="text-4xl md:text-5xl font-black text-white leading-tight mb-3">
@@ -47,11 +78,8 @@ export default function HomePage() {
           </h1>
 
           <div className="flex flex-wrap gap-2 mb-4">
-            {hero.genres.map((g) => (
-              <span
-                key={g}
-                className="text-xs border border-white/30 text-white/80 px-2.5 py-1 rounded-full"
-              >
+            {hero.genres.slice(0, 3).map((g) => (
+              <span key={g} className="text-xs border border-white/30 text-white/80 px-2.5 py-1 rounded-full">
                 {g}
               </span>
             ))}
@@ -86,58 +114,66 @@ export default function HomePage() {
         <Ad slot="1234567890" format="leaderboard" label="Advertisement" />
       </div>
 
-      {/* Categories */}
+      {/* Now Playing strip (TMDB only) */}
+      {nowPlaying.length > 0 && (
+        <section className="mb-8">
+          <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-[var(--color-cinema-red)] animate-pulse" />
+            Now Playing
+          </h2>
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
+            {nowPlaying.map((t) => (
+              <TrailerCard key={t.id} trailer={t} size="sm" />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Category tabs */}
       <section className="mb-8">
         <CategoryFilter active="all" />
       </section>
 
-      {/* Latest Trailers grid + Sidebar */}
+      {/* Trailers grid + Sidebar */}
       <div className="flex gap-8">
-        {/* Main grid */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between mb-5">
-            <h2 className="text-xl font-bold text-white">Latest Trailers</h2>
-            <Link href="/category/all" className="text-sm text-[var(--color-cinema-red)] hover:underline">
-              View all →
-            </Link>
+            <h2 className="text-xl font-bold text-white">
+              {tmdbEnabled() ? "Popular Trailers" : "Latest Trailers"}
+            </h2>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {latest.slice(0, 6).map((t) => (
+            {trailers.slice(0, 6).map((t) => (
               <TrailerCard key={t.id} trailer={t} />
             ))}
           </div>
 
-          {/* In-feed ad */}
           <div className="my-6">
             <Ad slot="2345678901" format="banner" label="Advertisement" />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {latest.slice(6, 12).map((t) => (
+            {trailers.slice(6, 15).map((t) => (
               <TrailerCard key={t.id} trailer={t} />
             ))}
           </div>
         </div>
 
-        {/* Sidebar ad */}
+        {/* Sidebar */}
         <aside className="hidden xl:flex flex-col gap-6 w-[300px] shrink-0">
           <Ad slot="3456789012" format="rectangle" label="Advertisement" />
 
-          {/* Featured trailers list */}
           <div>
             <h3 className="text-white font-semibold mb-3 text-sm uppercase tracking-wider">
               Top Rated
             </h3>
             <div className="flex flex-col gap-3">
-              {TRAILERS.sort((a, b) => b.rating - a.rating)
+              {[...trailers]
+                .sort((a, b) => b.rating - a.rating)
                 .slice(0, 5)
                 .map((t, i) => (
-                  <Link
-                    key={t.id}
-                    href={`/trailers/${t.id}`}
-                    className="flex gap-3 items-start group"
-                  >
+                  <Link key={t.id} href={`/trailers/${t.id}`} className="flex gap-3 items-start group">
                     <span className="text-2xl font-black text-[var(--color-cinema-border)] group-hover:text-[var(--color-cinema-red)] transition-colors w-6 text-center">
                       {i + 1}
                     </span>
@@ -152,7 +188,6 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Categories */}
           <div>
             <h3 className="text-white font-semibold mb-3 text-sm uppercase tracking-wider">
               Browse by Genre

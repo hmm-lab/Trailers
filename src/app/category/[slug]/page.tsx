@@ -1,15 +1,19 @@
 import { notFound } from "next/navigation";
-import { getTrailersByCategory, CATEGORIES } from "@/data/trailers";
+import { CATEGORIES, getStaticByCategory } from "@/data/trailers";
+import { getTrailersByCategory, tmdbEnabled } from "@/lib/tmdb";
+import { Trailer } from "@/types";
 import TrailerCard from "@/components/TrailerCard";
 import CategoryFilter from "@/components/CategoryFilter";
 import Ad from "@/components/Ad";
 
-interface Props {
-  params: Promise<{ slug: string }>;
-}
+export const revalidate = 3600;
 
 export async function generateStaticParams() {
   return CATEGORIES.filter((c) => c.slug !== "all").map((c) => ({ slug: c.slug }));
+}
+
+interface Props {
+  params: Promise<{ slug: string }>;
 }
 
 export async function generateMetadata({ params }: Props) {
@@ -17,8 +21,8 @@ export async function generateMetadata({ params }: Props) {
   const cat = CATEGORIES.find((c) => c.slug === slug);
   if (!cat) return {};
   return {
-    title: `${cat.label} Movie Trailers`,
-    description: `Watch the latest ${cat.label.toLowerCase()} movie trailers. Discover upcoming ${cat.label.toLowerCase()} films.`,
+    title: `${cat.label} Movie Trailers – Latest ${cat.label} Films`,
+    description: `Watch the latest ${cat.label.toLowerCase()} movie trailers. Auto-updated with new releases.`,
   };
 }
 
@@ -27,31 +31,37 @@ export default async function CategoryPage({ params }: Props) {
   const cat = CATEGORIES.find((c) => c.slug === slug);
   if (!cat) notFound();
 
-  const trailers = getTrailersByCategory(slug);
+  let trailers: Trailer[];
+  if (tmdbEnabled()) {
+    trailers = await getTrailersByCategory(slug).catch(() => getStaticByCategory(slug));
+  } else {
+    trailers = getStaticByCategory(slug);
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
-      {/* Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-black text-white mb-1">
           {cat.emoji} {cat.label} Trailers
         </h1>
         <p className="text-[var(--color-cinema-muted)]">
-          {trailers.length} trailer{trailers.length !== 1 ? "s" : ""} in {cat.label}
+          {trailers.length} trailer{trailers.length !== 1 ? "s" : ""}
+          {tmdbEnabled() && (
+            <span className="ml-2 text-xs bg-[var(--color-cinema-card)] border border-[var(--color-cinema-border)] px-2 py-0.5 rounded-full">
+              live · updates hourly
+            </span>
+          )}
         </p>
       </div>
 
-      {/* Category filter tabs */}
       <div className="mb-8">
         <CategoryFilter active={slug} />
       </div>
 
-      {/* Top ad */}
       <div className="mb-8">
         <Ad slot="8901234567" format="leaderboard" label="Advertisement" />
       </div>
 
-      {/* Grid */}
       {trailers.length === 0 ? (
         <div className="text-center py-20">
           <p className="text-[var(--color-cinema-muted)] text-lg">No trailers in this category yet.</p>
