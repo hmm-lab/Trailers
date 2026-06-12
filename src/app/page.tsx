@@ -4,6 +4,7 @@ import { CATEGORIES, STATIC_TRAILERS, getStaticFeatured } from "@/data/trailers"
 import {
   getPopularTrailers,
   getNowPlayingTrailers,
+  getUpcomingTrailers,
   tmdbEnabled,
 } from "@/lib/tmdb";
 import { Trailer } from "@/types";
@@ -24,10 +25,13 @@ export default async function HomePage() {
   let trailers: Trailer[];
   let nowPlaying: Trailer[];
 
+  let upcoming: Trailer[] = [];
+
   if (tmdbEnabled()) {
-    [trailers, nowPlaying] = await Promise.all([
+    [trailers, nowPlaying, upcoming] = await Promise.all([
       getPopularTrailers().catch(() => STATIC_TRAILERS),
       getNowPlayingTrailers().catch(() => []),
+      getUpcomingTrailers().catch(() => []),
     ]);
   } else {
     trailers = STATIC_TRAILERS;
@@ -124,6 +128,26 @@ export default async function HomePage() {
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
             {nowPlaying.map((t) => (
               <TrailerCard key={t.id} trailer={t} size="sm" />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Coming Soon strip */}
+      {upcoming.length > 0 && (
+        <section className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+              <span className="text-[var(--color-cinema-gold)]">🎬</span>
+              Coming Soon
+            </h2>
+            <Link href="/category/all" className="text-xs text-[var(--color-cinema-muted)] hover:text-white transition-colors">
+              View all →
+            </Link>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+            {upcoming.map((t) => (
+              <TrailerCard key={t.id} trailer={t} size="sm" upcoming />
             ))}
           </div>
         </section>

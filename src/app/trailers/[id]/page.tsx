@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
+import Script from "next/script";
 import { getTrailerById, getTrailersByCategory, tmdbEnabled } from "@/lib/tmdb";
 import { getStaticById, getStaticRelated } from "@/data/trailers";
 import { Trailer } from "@/types";
@@ -59,8 +60,34 @@ export default async function TrailerPage({ params }: Props) {
     ? `https://image.tmdb.org/t/p/w1280${trailer.backdropPath}`
     : null;
 
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://trailervault.vercel.app";
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "VideoObject",
+    name: `${trailer.title} – Official Trailer`,
+    description: trailer.description,
+    thumbnailUrl: `https://img.youtube.com/vi/${trailer.youtubeId}/hqdefault.jpg`,
+    embedUrl: `https://www.youtube.com/embed/${trailer.youtubeId}`,
+    url: `${siteUrl}/trailers/${trailer.id}`,
+    uploadDate: `${trailer.year}-01-01`,
+    ...(trailer.rating > 0 && {
+      aggregateRating: {
+        "@type": "AggregateRating",
+        ratingValue: trailer.rating,
+        bestRating: 10,
+        ratingCount: 1000,
+      },
+    }),
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
+      <Script
+        id={`jsonld-${trailer.id}`}
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+
       {/* Breadcrumb */}
       <nav className="flex items-center gap-2 text-sm text-[var(--color-cinema-muted)] mb-6">
         <Link href="/" className="hover:text-white transition-colors">Home</Link>

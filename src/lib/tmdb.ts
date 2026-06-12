@@ -171,6 +171,11 @@ export async function getNowPlayingTrailers(): Promise<Trailer[]> {
   return moviesWithTrailers(data.results, 8);
 }
 
+export async function getUpcomingTrailers(): Promise<Trailer[]> {
+  const data = await tmdbFetch<{ results: TMDBMovie[] }>("/movie/upcoming");
+  return moviesWithTrailers(data.results, 6);
+}
+
 export function tmdbEnabled(): boolean {
   return Boolean(KEY);
 }

@@ -5,10 +5,14 @@ import { Trailer } from "@/types";
 interface TrailerCardProps {
   trailer: Trailer;
   size?: "sm" | "md" | "lg";
+  upcoming?: boolean;
 }
 
-export default function TrailerCard({ trailer, size = "md" }: TrailerCardProps) {
-  const thumbnail = `https://img.youtube.com/vi/${trailer.youtubeId}/maxresdefault.jpg`;
+const CURRENT_YEAR = new Date().getFullYear();
+
+export default function TrailerCard({ trailer, size = "md", upcoming = false }: TrailerCardProps) {
+  const thumbnail = `https://img.youtube.com/vi/${trailer.youtubeId}/hqdefault.jpg`;
+  const isNew = trailer.year >= CURRENT_YEAR;
 
   return (
     <Link href={`/trailers/${trailer.id}`} className="group block trailer-card">
@@ -16,16 +20,18 @@ export default function TrailerCard({ trailer, size = "md" }: TrailerCardProps) 
       <div className="relative overflow-hidden rounded-lg bg-[var(--color-cinema-card)] aspect-video">
         <Image
           src={thumbnail}
-          alt={`${trailer.title} trailer thumbnail`}
+          alt={`${trailer.title} trailer`}
           fill
           className="object-cover transition-transform duration-300 group-hover:scale-105"
           unoptimized
         />
 
         {/* Duration badge */}
-        <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-1.5 py-0.5 rounded font-mono">
-          {trailer.duration}
-        </div>
+        {trailer.duration && (
+          <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-1.5 py-0.5 rounded font-mono">
+            {trailer.duration}
+          </div>
+        )}
 
         {/* Play overlay */}
         <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/30">
@@ -36,12 +42,22 @@ export default function TrailerCard({ trailer, size = "md" }: TrailerCardProps) 
           </div>
         </div>
 
-        {/* Genre badge */}
-        {trailer.genres[0] && (
-          <div className="absolute top-2 left-2 bg-[var(--color-cinema-red)]/90 text-white text-xs px-2 py-0.5 rounded-full font-medium">
-            {trailer.genres[0]}
-          </div>
-        )}
+        {/* Top-left badges */}
+        <div className="absolute top-2 left-2 flex gap-1.5">
+          {upcoming ? (
+            <span className="bg-[var(--color-cinema-gold)] text-black text-xs px-2 py-0.5 rounded-full font-bold">
+              COMING SOON
+            </span>
+          ) : isNew ? (
+            <span className="bg-emerald-500 text-white text-xs px-2 py-0.5 rounded-full font-bold">
+              NEW
+            </span>
+          ) : trailer.genres[0] ? (
+            <span className="bg-[var(--color-cinema-red)]/90 text-white text-xs px-2 py-0.5 rounded-full font-medium">
+              {trailer.genres[0]}
+            </span>
+          ) : null}
+        </div>
       </div>
 
       {/* Info */}
@@ -53,17 +69,27 @@ export default function TrailerCard({ trailer, size = "md" }: TrailerCardProps) 
         >
           {trailer.title}
         </h3>
-        <div className="flex items-center gap-2 mt-1">
+        <div className="flex items-center gap-2 mt-1 flex-wrap">
           <span className="text-xs text-[var(--color-cinema-muted)]">{trailer.year}</span>
-          <span className="text-[var(--color-cinema-border)]">•</span>
-          <span className="text-xs text-[var(--color-cinema-gold)] font-medium flex items-center gap-0.5">
-            ★ {trailer.rating}
-          </span>
-          <span className="text-[var(--color-cinema-border)]">•</span>
-          <span className="text-xs text-[var(--color-cinema-muted)]">{trailer.views} views</span>
+          {trailer.rating > 0 && (
+            <>
+              <span className="text-[var(--color-cinema-border)]">•</span>
+              <span className="text-xs text-[var(--color-cinema-gold)] font-medium">
+                ★ {trailer.rating}
+              </span>
+            </>
+          )}
+          {trailer.views && (
+            <>
+              <span className="text-[var(--color-cinema-border)]">•</span>
+              <span className="text-xs text-[var(--color-cinema-muted)]">{trailer.views}</span>
+            </>
+          )}
         </div>
         {size === "lg" && (
-          <p className="text-sm text-[var(--color-cinema-muted)] mt-1.5 line-clamp-2">{trailer.description}</p>
+          <p className="text-sm text-[var(--color-cinema-muted)] mt-1.5 line-clamp-2">
+            {trailer.description}
+          </p>
         )}
       </div>
     </Link>
